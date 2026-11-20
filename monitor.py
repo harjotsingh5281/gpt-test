@@ -11,7 +11,7 @@ from zoneinfo import ZoneInfo
 URL = "https://gblc.ca/en/book-now/choose-date?test=6"
 START, END = date(2026, 12, 10), date(2026, 12, 31)
 MONTHS = {v.lower(): k for k, v in enumerate("Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec".split(), 1)}
-CARD = re.compile(r"\bTCF Canada\s+Group Test Time\s+(?P<seats>\d+)\s+Group Test Time\s+(?:MON|TUE|WED|THU|FRI|SAT|SUN)\s+(?P<day>\d{1,2})\s+(?P<month>Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+(?P<year>20\d{2})\b", re.I)
+CARD = re.compile(r"\bTCF Canada(?:\s+Group Test Time)?\s+(?P<seats>\d+)\s+Group Test Time\s+(?:MON|TUE|WED|THU|FRI|SAT|SUN)\s+(?P<day>\d{1,2})\s+(?P<month>Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+(?P<year>20\d{2})\b", re.I)
 PILL = re.compile(r"^\s*(?P<month>Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+(?P<day>\d{1,2})\s+(?:MON|TUE|WED|THU|FRI|SAT|SUN)\s+(?P<seats>\d+)\s+Slots?\s*$", re.I)
 TIME = re.compile(r"\b\d{1,2}:\d{2}\s*(?:AM|PM)\b", re.I)
 DEADLINE = re.compile(r"Registration Deadline:\s+(?:MON|TUE|WED|THU|FRI|SAT|SUN)\s+(\d{1,2})\s+(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+(20\d{2})", re.I)
