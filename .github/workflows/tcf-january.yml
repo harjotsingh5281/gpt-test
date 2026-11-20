@@ -1,0 +1,70 @@
+name: TCF Canada GBLC - January 2027
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: Inspect January 2027 calendar without alerts or state changes
+        type: boolean
+        required: true
+        default: true
+      notification_test:
+        description: Send one January ntfy test (no GBLC scan; requires ntfy secret)
+        type: boolean
+        required: true
+        default: false
+  push:
+    paths:
+      - 'monitor_january.py'
+      - 'tests/test_january.py'
+      - '.github/workflows/tcf-january.yml'
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: gblc-tcf-january
+  cancel-in-progress: false
+
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Run December and January parser tests
+        run: python -m unittest discover -s tests -v
+
+  scan:
+    if: github.event_name == 'workflow_dispatch' || github.event_name == 'push'
+    needs: test
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+      NTFY_TOPIC_JANUARY: ${{ secrets.NTFY_TOPIC_JANUARY }}
+      NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+      NOTIFICATION_TEST: ${{ github.event_name == 'workflow_dispatch' && inputs.notification_test && '1' || '0' }}
+      DRY_RUN: ${{ github.event_name == 'push' && '1' || inputs.dry_run && '1' || '0' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install -r requirements.txt
+      - run: python -m playwright install --with-deps chromium
+      - name: Inspect January 2027 availability (read-only)
+        run: python monitor_january.py
+      - name: Upload screenshot only on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gblc-january-debug
+          path: gblc-error.png
+          if-no-files-found: ignore
+          retention-days: 3
