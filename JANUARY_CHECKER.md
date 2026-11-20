@@ -17,7 +17,7 @@ This is a **separate GitHub Actions workflow** from the December 2026 checker. I
 
 Workflow file: `.github/workflows/tcf-january.yml`.
 
-Checks every **15 minutes** at UTC minutes `02,17,32,47`, staggered five minutes away from the December checker. GitHub Actions scheduling is best effort and may be delayed or occasionally skipped.
+Checks **once per hour** at UTC minute `02`, staggered five minutes away from the December checker (which remains every 15 minutes). GitHub Actions scheduling is best effort and may be delayed or occasionally skipped.
 
 [Open January workflow](https://github.com/harjotsingh5281/gpt-test/actions/workflows/tcf-january.yml).
 
