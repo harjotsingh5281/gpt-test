@@ -1,0 +1,62 @@
+name: TCF Canada GBLC slot monitor
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: Inspect public calendar without alerts or state changes
+        type: boolean
+        required: true
+        default: true
+  push:
+    paths:
+      - 'monitor.py'
+      - 'requirements.txt'
+      - 'tests/**'
+      - '.github/workflows/tcf-monitor.yml'
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: gblc-tcf-monitor
+  cancel-in-progress: false
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Validate availability parser
+        run: python -m unittest discover -s tests -v
+  scan:
+    if: github.event_name == 'workflow_dispatch'
+    needs: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+      DRY_RUN: ${{ inputs.dry_run && '1' || '0' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install -r requirements.txt
+      - run: python -m playwright install --with-deps chromium
+      - name: Inspect GBLC date calendar read-only
+        run: python monitor.py
+      - name: Upload screenshot only on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gblc-debug-screenshot
+          path: gblc-error.png
+          if-no-files-found: ignore
+          retention-days: 3
