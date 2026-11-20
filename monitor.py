@@ -136,7 +136,31 @@ def discord(message):
     with urllib.request.urlopen(req, timeout=15):
         pass
 
+def ntfy_notify(message, title="TCF Canada monitor", priority="high", url=URL):
+    """Push to an ntfy.sh topic stored only as a GitHub Actions secret."""
+    topic = os.environ.get("NTFY_TOPIC", "").strip()
+    if not topic:
+        return False
+    if not re.fullmatch(r"[A-Za-z0-9_-]{16,64}", topic):
+        raise CheckError("NTFY_TOPIC must have 16-64 letters, numbers, hyphens or underscores")
+    headers = {"Title": title[:90], "Priority": priority, "Click": url,
+               "Content-Type": "text/plain; charset=utf-8", "User-Agent": "gblc-readonly-monitor"}
+    request = urllib.request.Request("https://ntfy.sh/" + topic, data=message.encode("utf-8"),
+                                     headers=headers, method="POST")
+    with urllib.request.urlopen(request, timeout=15) as response:
+        if response.status not in (200, 201):
+            raise CheckError(f"ntfy returned HTTP {response.status}")
+    return True
+
+
 def main():
+    if os.environ.get("NOTIFICATION_TEST") == "1":
+        if not os.environ.get("NTFY_TOPIC", "").strip():
+            raise CheckError("Please set GitHub Actions secret NTFY_TOPIC before running notification_test")
+        ntfy_notify("TEST ONLY: GitHub Actions sent this message. No exam slot has been found.",
+                    title="TCF MONITOR - TEST ONLY", priority="high", url=URL)
+        print("NTFY TEST: notification successfully accepted by ntfy.sh")
+        return 0
     today = datetime.now(ZoneInfo("America/Toronto")).date()
     if today > END:
         print("Target date window expired; no network request to GBLC.")
@@ -158,6 +182,11 @@ def main():
                 discord("⚠️ GBLC calendar monitoring has failed 3 times: " + link)
             except Exception as notify_error:
                 print("Discord notification failed:", notify_error, file=sys.stderr)
+            try:
+                ntfy_notify("GBLC calendar monitoring has failed 3 consecutive times. Check workflow logs: " + link,
+                            title="TCF MONITOR - CHECK FAILED", priority="high", url=link)
+            except Exception as notify_error:
+                print("ntfy failure notification failed:", notify_error, file=sys.stderr)
         state_save(number, state)
         raise
     old = set(state.get("keys", []))
@@ -172,6 +201,11 @@ def main():
             discord("🚨 GBLC TCF Canada slot found:\n" + details + "\n" + URL + "\n" + issue)
         except Exception as notify_error:
             print("Discord notification failed; GitHub issue still exists:", notify_error, file=sys.stderr)
+        try:
+            ntfy_notify("New GBLC TCF Canada session(s):\n" + details + "\nBook manually: " + URL,
+                        title="TCF CANADA - BOOKABLE SLOT FOUND", priority="urgent", url=URL)
+        except Exception as notify_error:
+            print("ntfy slot notification failed; GitHub issue still exists:", notify_error, file=sys.stderr)
     else:
         print(f"OK: {card_count} exam cards inspected; no new eligible session.")
     had_failures = bool(state.get("failures") or state.get("reported"))
