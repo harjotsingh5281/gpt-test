@@ -1,6 +1,8 @@
 name: TCF Canada GBLC - January 2027
 
 on:
+  schedule:
+    - cron: '2,17,32,47 * * * *'
   workflow_dispatch:
     inputs:
       dry_run:
@@ -40,7 +42,7 @@ jobs:
         run: python -m unittest discover -s tests -v
 
   scan:
-    if: github.event_name == 'workflow_dispatch' || github.event_name == 'push'
+    if: github.event_name == 'workflow_dispatch' || github.event_name == 'push' || github.event_name == 'schedule'
     needs: test
     runs-on: ubuntu-24.04
     timeout-minutes: 8
@@ -50,7 +52,7 @@ jobs:
       NTFY_TOPIC_JANUARY: ${{ secrets.NTFY_TOPIC_JANUARY }}
       NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
       NOTIFICATION_TEST: ${{ github.event_name == 'workflow_dispatch' && inputs.notification_test && '1' || '0' }}
-      DRY_RUN: ${{ github.event_name == 'push' && '1' || inputs.dry_run && '1' || '0' }}
+      DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run && '1' || '0' }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
