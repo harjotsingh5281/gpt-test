@@ -194,15 +194,18 @@ def main():
     new = sorted(current - old)
     if new:
         details = "\n".join(f"- {slots[k]['date']} {slots[k]['time']}: {slots[k]['seats']} observed seats" for k in new)
-        issue = create_issue("[TCF JAN SLOT] " + ", ".join(sorted({slots[k]["date"] for k in new})),
-            f"**New eligible TCF Canada – Computer sessions in Toronto:**\n\n{details}\n\nBook manually: {URL}\n\nAvailability may change. No seat has been reserved.")
+        dates = sorted({slots[k]["date"] for k in new})
+        title = f"[TCF JAN SLOT] {len(dates)} date(s), {len(new)} session(s) ({dates[0]} to {dates[-1]})"
+        issue = create_issue(title,
+            f"**New eligible TCF Canada – Computer sessions in Toronto for January 2027:**\n\n{details}\n\nBook manually: {URL}\n\nAvailability may change. No seat has been reserved.")
         print("SLOT ALERT:", issue)
         try:
             discord("🚨 GBLC January 2027 TCF Canada slot found:\n" + details + "\n" + URL + "\n" + issue)
         except Exception as notify_error:
             print("Discord notification failed; GitHub issue still exists:", notify_error, file=sys.stderr)
         try:
-            ntfy_notify("New January 2027 GBLC TCF Canada session(s):\n" + details + "\nBook manually: " + URL,
+            ntfy_notify("New January 2027 GBLC TCF Canada session(s):\n" + details[:2200] +
+                        "\nComplete list: " + issue + "\nBook manually: " + URL,
                         title="TCF JANUARY - BOOKABLE SLOT FOUND", priority="urgent", url=URL)
         except Exception as notify_error:
             print("ntfy slot notification failed; GitHub issue still exists:", notify_error, file=sys.stderr)
