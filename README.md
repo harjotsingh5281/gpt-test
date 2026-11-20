@@ -1,29 +1,41 @@
 # GBLC TCF Canada slot monitor
 
-Read-only monitoring for **TCF Canada – Computer** examinations at GB Language Centre, Toronto, between **December 10 and December 31, 2026**.
+**Status:** Scheduled cloud monitoring enabled. This is a read-only booking-calendar observer, not a booking bot.
 
-Booking page: https://gblc.ca/en/book-now/choose-date?test=6
+**Exam:** TCF Canada – Computer, GB Language Centre, Toronto. **Target exam dates:** December 10–31, 2026 (inclusive).
 
-The monitor **never** signs in, uploads passports, reserves dates, or makes payments. It alerts via a GitHub issue assigned to the repository owner, optionally via Discord webhook. An alert means the seat was visible at the time checked, not reserved.
+Official booking page: https://gblc.ca/en/book-now/choose-date?test=6
 
-## Testing before recurring checks
-The initial workflow runs parser tests on push. In GitHub, open **Actions → TCF Canada GBLC slot monitor → Run workflow** with **dry_run: true** to inspect the live calendar without creating alerts or updating state. Check the results and screenshot artifacts.
+The monitor never signs in, uploads passports, reserves dates, or makes payments. An alert means a matching session was visible during the check, **not** that a seat was held.
 
-Only after successful inspection should the 15-minute schedule be added to the workflow:
-```yaml
-  schedule:
-    - cron: '7,22,37,52 * * * *'
-```
-Scheduled checks may be delayed or skipped by GitHub; they are not an exact guarantee.
+## Schedule and verified test
+
+GitHub Actions schedule: `7,22,37,52 * * * *` (every 15 minutes, UTC clock). GitHub may delay or skip scheduled runs, especially at busy times. This schedule uses the **cloud**, so your laptop need not be running.
+
+A successful live GitHub dry run on November 20, 2026 (run #44801384024) parsed **123 examination cards** and found **0 eligible dates**. It used Ubuntu 24.04 and a Playwright Chromium browser. Actual GitHub scan execution is not guaranteed to be immediate.
+
+Open the [Actions workflow](https://github.com/harjotsingh5281/gpt-test/actions/workflows/tcf-monitor.yml) to review live and scheduled runs.
 
 ## Notifications
-GitHub issues are assigned to the repository owner on new eligible sessions; enable GitHub mobile/email **issue-assignment notifications**. Avoid Actions-success notification spam. Optionally add the Actions secret `DISCORD_WEBHOOK_URL` (never commit its value) to push messages to a Discord channel.
 
-## Safety and monitoring logic
-- Check only the official GBLC date-selection page; no booking or payment steps.
-- Require a full-year **TCF Canada** session card for Toronto with a `Select` control, positive slot count, and corroborating positive-slot date button.
-- Only alert on newly detected session/date keys (including reappearances after a successful no-slot scan).
-- Do not reset availability after a scan failure; after 3 consecutive errors create a separate failure issue.
-- Stop contacting GBLC after December 31, 2026 (Toronto time).
-- Stop if the site blocks the checker; do not bypass CAPTCHA/Queue-Fair.
-- A failed GitHub scheduler with no runs needs an independent external heartbeat service to be detectable.
+**GitHub Issues:** When an eligible TCF Canada session appears or reappears, the monitor creates a GitHub issue assigned to the repository owner, listing exact exam date/time, observed seat count, and a manual booking link. Enable assignment notifications in [GitHub notification settings](https://github.com/settings/notifications) and the GitHub mobile app. Internal monitoring state is kept in a GitHub issue named **[TCF Monitor] Internal state (do not close)**. Do not close or edit it.
+
+**Optional immediate Discord push:** In GitHub go to **Settings → Secrets and variables → Actions → New repository secret**. Set the name to `DISCORD_WEBHOOK_URL` and paste a Discord channel webhook URL as its value. Never put it in a commit, issue, or chat message. Discord sends the same booking/failure alert; the secret is optional.
+
+**Failure alerts:** If the read-only checker fails three consecutive scans, it creates a separate GitHub failure issue. A broken GitHub schedule that never starts jobs requires independent heartbeat monitoring; this workflow alone cannot detect the absence of its own runs.
+
+## Run the safe manual test
+
+Open **Actions → TCF Canada GBLC slot monitor → Run workflow**. Leave **dry_run** checked. This reads only the public calendar, prints the eligible-session count in logs, and does **not** change state or send alerts.
+
+## After successful booking
+
+Disable the workflow via **Actions → TCF Canada GBLC slot monitor → ... → Disable workflow** to stop scheduled checks. Checks automatically avoid contacting GBLC after December 31, 2026 in Toronto time, although you must disable the workflow to avoid continued GitHub runs.
+
+## Detection and safety
+
+- Parse date from the **exam session** card, never from expected-result dates or registration deadlines.
+- Accept only December 10–31, 2026; verify Toronto, Computer, `Select` button, positive seats, corroborating date button, and unexpired registration deadline.
+- Preserve last successful state if a scan fails; alert only on previously unseen/reappearing eligible sessions, rather than every unchanged check.
+- Treat CAPTCHA, access denial, or unexpected page redesign as failure, not no availability. No CAPTCHA bypass, account automation, or payment automation.
+- Browser-install action warnings about Node.js 20 do not affect the current functionality; runner compatibility was fixed by pinning `ubuntu-24.04`.
