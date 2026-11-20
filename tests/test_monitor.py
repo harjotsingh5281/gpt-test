@@ -1,6 +1,7 @@
 import unittest
 from datetime import date
-from monitor import parse, CheckError
+from monitor import parse, CheckError, ntfy_notify
+from unittest.mock import patch, MagicMock
 TODAY = date(2026, 11, 20)
 HEAD = "Choose Date\nTest\nTCF Canada - Computer\nToronto\n"
 def pill(day, month="Dec", count=1):
@@ -37,4 +38,26 @@ class Tests(unittest.TestCase):
         with self.assertRaises(CheckError): parse(HEAD + "No sessions", [], TODAY)
         found, _ = parse(HEAD + card(10, deadline="THU 19 Nov 2026"), [pill(10)], TODAY)
         self.assertEqual(found, {})
+class NotificationTests(unittest.TestCase):
+    def test_ntfy_disabled_without_secret(self):
+        with patch.dict("os.environ", {}, clear=True):
+            self.assertFalse(ntfy_notify("test"))
+
+    def test_ntfy_rejects_short_topic(self):
+        with patch.dict("os.environ", {"NTFY_TOPIC": "guessme"}, clear=True):
+            with self.assertRaises(CheckError):
+                ntfy_notify("test")
+
+    def test_ntfy_publish_request(self):
+        response = MagicMock()
+        response.status = 200
+        with patch.dict("os.environ", {"NTFY_TOPIC": "private-test-0123456789"}, clear=True), \
+             patch("urllib.request.urlopen") as fake:
+            fake.return_value.__enter__.return_value = response
+            self.assertTrue(ntfy_notify("test message", title="Notification Test"))
+            req = fake.call_args.args[0]
+            self.assertEqual(req.full_url, "https://ntfy.sh/private-test-0123456789")
+            self.assertEqual(req.data, b"test message")
+            self.assertEqual(req.get_method(), "POST")
+
 if __name__ == "__main__": unittest.main()
