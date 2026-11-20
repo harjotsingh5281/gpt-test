@@ -70,8 +70,18 @@ def scan():
                 page.wait_for_function("() => document.body.innerText.includes('Group Test Time')", timeout=25000)
             except Exception as exc:
                 raise CheckError("GBLC examination cards did not load in time") from exc
-            return parse(page.locator("body").inner_text(), page.locator("button").all_inner_texts(),
-                         datetime.now(ZoneInfo("America/Toronto")).date())
+            body = page.locator("body").inner_text()
+            buttons = page.locator("button").all_inner_texts()
+            try:
+                return parse(body, buttons, datetime.now(ZoneInfo("America/Toronto")).date())
+            except CheckError:
+                if os.environ.get("DRY_RUN") == "1":
+                    # Public booking-page text only. Never dump cookies or private form values.
+                    position = body.find("Group Test Time")
+                    print("DIAGNOSTIC: page title:", page.title(), flush=True)
+                    print("DIAGNOSTIC: text around first group time:", repr(body[max(0, position-300):position+1700]), flush=True)
+                    print("DIAGNOSTIC: date buttons:", repr([b for b in buttons if "Slots" in b][:8]), flush=True)
+                raise
         except Exception:
             try:
                 page.screenshot(path="gblc-error.png")
