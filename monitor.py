@@ -131,10 +131,28 @@ def discord(message):
         return
     if not re.fullmatch(r"https://(?:discord\.com|discordapp\.com)/api/webhooks/[^/\s]+/[^/\s]+", url):
         raise CheckError("Invalid Discord webhook URL")
-    req = urllib.request.Request(url, data=json.dumps({"content": message[:1900]}).encode(),
-                                 headers={"Content-Type": "application/json", "User-Agent": "gblc-readonly-monitor"})
-    with urllib.request.urlopen(req, timeout=15):
-        pass
+    # Discord caps messages at 2,000 characters. Send all availability lines in batches.
+    lines = message.splitlines(keepends=True)
+    chunks = []
+    chunk = ""
+    for line in lines:
+        while len(line) > 1900:
+            if chunk:
+                chunks.append(chunk)
+                chunk = ""
+            chunks.append(line[:1900])
+            line = line[1900:]
+        if len(chunk) + len(line) > 1900:
+            chunks.append(chunk)
+            chunk = ""
+        chunk += line
+    if chunk:
+        chunks.append(chunk)
+    for part in chunks:
+        req = urllib.request.Request(url, data=json.dumps({"content": part}).encode(),
+                                     headers={"Content-Type": "application/json", "User-Agent": "gblc-readonly-monitor"})
+        with urllib.request.urlopen(req, timeout=15):
+            pass
 
 def ntfy_notify(message, title="TCF Canada monitor", priority="high", url=URL):
     """Push to an ntfy.sh topic stored only as a GitHub Actions secret."""
@@ -151,6 +169,17 @@ def ntfy_notify(message, title="TCF Canada monitor", priority="high", url=URL):
         if response.status not in (200, 201):
             raise CheckError(f"ntfy returned HTTP {response.status}")
     return True
+
+
+def availability_report(slots, new_keys):
+    """Return the complete December 10-31 availability snapshot, highlighting new sessions."""
+    new_keys = set(new_keys)
+    lines = []
+    for key in sorted(slots):
+        slot = slots[key]
+        mark = " (NEW)" if key in new_keys else ""
+        lines.append(f"- {slot['date']} at {slot['time']} — {slot['seats']} observed seats{mark}")
+    return "\n".join(lines)
 
 
 def main():
@@ -193,17 +222,30 @@ def main():
     current = set(slots)
     new = sorted(current - old)
     if new:
-        details = "\n".join(f"- {slots[k]['date']} {slots[k]['time']}: {slots[k]['seats']} observed seats" for k in new)
-        issue = create_issue("[TCF SLOT] " + ", ".join(sorted({slots[k]["date"] for k in new})),
-            f"**New eligible TCF Canada – Computer sessions in Toronto:**\n\n{details}\n\nBook manually: {URL}\n\nAvailability may change. No seat has been reserved.")
+        details = availability_report(slots, new)
+        new_dates = sorted({slots[k]["date"] for k in new})
+        title = f"[TCF SLOT] {len(new)} new session(s); {len(slots)} total Dec 10-31"
+        if len(new_dates) == 1:
+            title += f" ({new_dates[0]})"
+        issue_body = (
+            "**TCF Canada – Computer, Toronto — all currently available examination sessions from December 10–31, 2026:**\n\n"
+            f"**{len(slots)} available session(s) on {len({slots[k]['date'] for k in slots})} date(s). "
+            f"{len(new)} newly detected session(s), marked (NEW).**\n\n"
+            + details + f"\n\n**Book manually:** {URL}\n\n"
+            "Availability is a snapshot and may change. No seat has been reserved."
+        )
+        issue = create_issue(title, issue_body)
         print("SLOT ALERT:", issue)
         try:
-            discord("🚨 GBLC TCF Canada slot found:\n" + details + "\n" + URL + "\n" + issue)
+            discord("GBLC TCF Canada December 10-31 — COMPLETE availability:\n"
+                    + details + "\nBooking page: " + URL + "\nFull report: " + issue)
         except Exception as notify_error:
             print("Discord notification failed; GitHub issue still exists:", notify_error, file=sys.stderr)
         try:
-            ntfy_notify("New GBLC TCF Canada session(s):\n" + details + "\nBook manually: " + URL,
-                        title="TCF CANADA - BOOKABLE SLOT FOUND", priority="urgent", url=URL)
+            ntfy_notify(f"TCF Canada December 10-31: {len(slots)} available sessions; "
+                        f"{len(new)} new. Full currently available list:\n" + details
+                        + "\nBook: " + URL + "\nFull report: " + issue,
+                        title="TCF DECEMBER - ALL AVAILABLE SLOTS", priority="urgent", url=issue)
         except Exception as notify_error:
             print("ntfy slot notification failed; GitHub issue still exists:", notify_error, file=sys.stderr)
     else:
