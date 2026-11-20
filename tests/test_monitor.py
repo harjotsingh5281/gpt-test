@@ -6,11 +6,16 @@ HEAD = "Choose Date\nTest\nTCF Canada - Computer\nToronto\n"
 def pill(day, month="Dec", count=1):
     return f"{month} {day}\nFRI\n{count} Slots"
 def card(day, month="Dec", year=2026, count=1, select=True, deadline="MON 07 Dec 2026"):
-    return (f"TCF Canada\nGroup Test Time\n{count}\nGroup Test Time\nFRI {day} {month} {year}\n"
+    return (f"TCF Canada\n{count}\nGroup Test Time\nFRI {day} {month} {year}\n"
             "02:00 PM - 05:00 PM\nExpected Result Date: Fri 22 Jan 2027\nToronto\nComputer\n"
             "Oral Time:\n09:20 AM - 09:40 AM\nCAD $452\n" +
             ("Select\n" if select else "") + f"Registration Deadline: {deadline}\n")
 class Tests(unittest.TestCase):
+    def test_old_layout_remains_supported(self):
+        old_card = card(10).replace("TCF Canada\n1\nGroup Test Time", "TCF Canada\nGroup Test Time\n1\nGroup Test Time")
+        found, _ = parse(HEAD + old_card, [pill(10)], TODAY)
+        self.assertEqual({x["date"] for x in found.values()}, {"2026-12-10"})
+
     def test_no_december_in_observed_calendar(self):
         body = HEAD + card(27, "Nov", deadline="MON 23 Nov 2026") + card(15, "Jan", 2027, 26, deadline="MON 11 Jan 2027")
         found, n = parse(body, [pill(27, "Nov"), pill(15, "Jan", 26)], TODAY)
