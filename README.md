@@ -18,7 +18,7 @@ Open the [Actions workflow](https://github.com/harjotsingh5281/gpt-test/actions/
 
 ## Notifications
 
-**GitHub Issues:** When an eligible TCF Canada session appears or reappears, the monitor creates a GitHub issue assigned to the repository owner, listing exact exam date/time, observed seat count, and a manual booking link. Enable assignment notifications in [GitHub notification settings](https://github.com/settings/notifications) and the GitHub mobile app. Internal monitoring state is kept in a GitHub issue named **[TCF Monitor] Internal state (do not close)**. Do not close or edit it.
+**GitHub Issues:** When an eligible TCF Canada session appears or reappears, the monitor creates a GitHub issue assigned to the repository owner. **Every such issue lists the complete current snapshot of all available December 10–31, 2026 sessions**, including exam date, time, observed seat count, and booking link. Newly added sessions are marked `(NEW)`; existing still-available sessions are included as well. No new session means no duplicate alert. GitHub emails depend on your GitHub notification preferences and may show only a preview/link; a custom standalone email service has **not** been configured. Enable assignment notifications in [GitHub notification settings](https://github.com/settings/notifications) and the GitHub mobile app. Internal monitoring state is kept in a GitHub issue named **[TCF Monitor] Internal state (do not close)**. Do not close or edit it.
 
 **Optional immediate Discord push:** In GitHub go to **Settings → Secrets and variables → Actions → New repository secret**. Set the name to `DISCORD_WEBHOOK_URL` and paste a Discord channel webhook URL as its value. Never put it in a commit, issue, or chat message. Discord sends the same booking/failure alert; the secret is optional.
 
@@ -34,7 +34,7 @@ GitHub Issue assignment pushes can be suppressed for self-created activity. As a
 4. Open [GitHub Actions workflow](https://github.com/harjotsingh5281/gpt-test/actions/workflows/tcf-monitor.yml) and choose **Run workflow**. Check `notification_test` = **true**. This sends **one test push** via GitHub Actions without visiting the GBLC website or modifying state. It requires the topic secret.
 5. Confirm the phone receives the push. Allow ntfy Android notifications and consider battery unrestricted for reliability. Keep GitHub issue alerts as an audit trail.
 
-Slot notifications use ntfy **urgent** priority, link directly to GBLC and include date, time and last observed seat count. Failure alerts use **high** priority after three consecutive failed scans. No notification is sent after an unchanged successful scan.
+Slot notifications use ntfy **urgent** priority and include the **complete current December 10–31 availability snapshot**, with a link to the GitHub issue and booking page. Failure alerts use **high** priority after three consecutive failed scans. No notification is sent after an unchanged successful scan.
 
 This is not a private messaging service: on ntfy.sh, topics are public even if obscured by a hard-to-guess name. Only public exam session data is sent; do not send credentials or identity documents. No notification provider guarantees delivery.
 
