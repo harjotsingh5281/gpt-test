@@ -25,7 +25,7 @@ concurrency:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
@@ -35,14 +35,14 @@ jobs:
       - name: Validate availability parser
         run: python -m unittest discover -s tests -v
   scan:
-    if: github.event_name == 'workflow_dispatch'
+    if: github.event_name == 'workflow_dispatch' || github.event_name == 'push'
     needs: test
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 8
     env:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
-      DRY_RUN: ${{ inputs.dry_run && '1' || '0' }}
+      DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run == false && '0' || '1' }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
