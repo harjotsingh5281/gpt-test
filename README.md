@@ -24,6 +24,20 @@ Open the [Actions workflow](https://github.com/harjotsingh5281/gpt-test/actions/
 
 **Failure alerts:** If the read-only checker fails three consecutive scans, it creates a separate GitHub failure issue. A broken GitHub schedule that never starts jobs requires independent heartbeat monitoring; this workflow alone cannot detect the absence of its own runs.
 
+## Recommended Android push notifications with ntfy
+
+GitHub Issue assignment pushes can be suppressed for self-created activity. As a direct, optional alternative, the monitor supports **ntfy** push messages independent of GitHub's issue notification settings.
+
+1. Install [ntfy for Android](https://play.google.com/store/apps/details?id=io.heckel.ntfy).
+2. Create a **random, hard-to-guess topic** (16–64 letters/numbers/underscores/hyphens) and subscribe to it in the app. Do not post the topic publicly; ntfy.sh topics are public to anyone who knows the name.
+3. Open repository **Settings → Secrets and variables → Actions → New repository secret**. Name it `NTFY_TOPIC`; set the **value** to exactly the topic name (not the full URL). Do not put the topic in issues, commits, or chats.
+4. Open [GitHub Actions workflow](https://github.com/harjotsingh5281/gpt-test/actions/workflows/tcf-monitor.yml) and choose **Run workflow**. Check `notification_test` = **true**. This sends **one test push** via GitHub Actions without visiting the GBLC website or modifying state. It requires the topic secret.
+5. Confirm the phone receives the push. Allow ntfy Android notifications and consider battery unrestricted for reliability. Keep GitHub issue alerts as an audit trail.
+
+Slot notifications use ntfy **urgent** priority, link directly to GBLC and include date, time and last observed seat count. Failure alerts use **high** priority after three consecutive failed scans. No notification is sent after an unchanged successful scan.
+
+This is not a private messaging service: on ntfy.sh, topics are public even if obscured by a hard-to-guess name. Only public exam session data is sent; do not send credentials or identity documents. No notification provider guarantees delivery.
+
 ## Run the safe manual test
 
 Open **Actions → TCF Canada GBLC slot monitor → Run workflow**. Leave **dry_run** checked. This reads only the public calendar, prints the eligible-session count in logs, and does **not** change state or send alerts.
