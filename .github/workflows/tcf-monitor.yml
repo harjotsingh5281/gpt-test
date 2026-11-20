@@ -10,6 +10,11 @@ on:
         type: boolean
         required: true
         default: true
+      notification_test:
+        description: Send ONE ntfy test push (requires NTFY_TOPIC secret; no GBLC scan)
+        type: boolean
+        required: true
+        default: false
   push:
     paths:
       - 'monitor.py'
@@ -44,6 +49,8 @@ jobs:
     env:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+      NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+      NOTIFICATION_TEST: ${{ github.event_name == 'workflow_dispatch' && inputs.notification_test && '1' || '0' }}
       DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run && '1' || '0' }}
     steps:
       - uses: actions/checkout@v4
