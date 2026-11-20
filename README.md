@@ -10,7 +10,7 @@ The monitor never signs in, uploads passports, reserves dates, or makes payments
 
 ## Schedule and verified test
 
-GitHub Actions schedule: `7,22,37,52 * * * *` (every 15 minutes, UTC clock). GitHub may delay or skip scheduled runs, especially at busy times. This schedule uses the **cloud**, so your laptop need not be running.
+GitHub Actions schedule: `3,8,13,18,23,28,33,38,43,48,53,58 * * * *` (every 5 minutes, UTC clock). GitHub may delay or skip scheduled runs, especially at busy times. This schedule uses the **cloud**, so your laptop need not be running.
 
 A successful live GitHub dry run on November 20, 2026 (run #44801384024) parsed **123 examination cards** and found **0 eligible dates**. It used Ubuntu 24.04 and a Playwright Chromium browser. Actual GitHub scan execution is not guaranteed to be immediate.
 
