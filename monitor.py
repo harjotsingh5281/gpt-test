@@ -164,8 +164,9 @@ def main():
             print("Discord notification failed; GitHub issue still exists:", notify_error, file=sys.stderr)
     else:
         print(f"OK: {card_count} exam cards inspected; no new eligible session.")
+    had_failures = bool(state.get("failures") or state.get("reported"))
     state.update(keys=sorted(current), failures=0, reported=False)
-    if number is None or current != old or state.get("failures"):
+    if number is None or current != old or had_failures:
         state_save(number, state)
     return 0
 
