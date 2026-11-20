@@ -38,3 +38,4 @@ class JanuaryTests(unittest.TestCase):
             parse(HEAD+card(15),[],TODAY)
 if __name__ == "__main__":
     unittest.main()
+# AUTOMATED_FALLBACK_HEARTBEAT: 2026-11-20 first verified trigger
