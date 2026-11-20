@@ -1,6 +1,6 @@
 import unittest
 from datetime import date
-from monitor import parse, CheckError, ntfy_notify
+from monitor import parse, CheckError, ntfy_notify, availability_report, discord
 from unittest.mock import patch, MagicMock
 TODAY = date(2026, 11, 20)
 HEAD = "Choose Date\nTest\nTCF Canada - Computer\nToronto\n"
@@ -59,5 +59,34 @@ class NotificationTests(unittest.TestCase):
             self.assertEqual(req.full_url, "https://ntfy.sh/private-test-0123456789")
             self.assertEqual(req.data, b"test message")
             self.assertEqual(req.get_method(), "POST")
+
+class DecemberFullAvailabilityAlertTests(unittest.TestCase):
+    def test_reports_every_available_december_session_not_only_new(self):
+        slots = {
+            "2026-12-10|10:00 AM": {"date": "2026-12-10", "time": "10:00 AM", "seats": 2},
+            "2026-12-15|02:00 PM": {"date": "2026-12-15", "time": "02:00 PM", "seats": 4},
+            "2026-12-31|10:00 AM": {"date": "2026-12-31", "time": "10:00 AM", "seats": 1},
+        }
+        report = availability_report(slots, ["2026-12-15|02:00 PM"])
+        self.assertEqual(len(report.splitlines()), 3)
+        self.assertIn("2026-12-10 at 10:00 AM", report)
+        self.assertIn("2026-12-15 at 02:00 PM", report)
+        self.assertIn("2026-12-31 at 10:00 AM", report)
+        self.assertIn("4 observed seats (NEW)", report)
+        self.assertEqual(report.count("(NEW)"), 1)
+
+    def test_discord_sends_all_rows_even_above_one_message_limit(self):
+        import json
+        response = MagicMock()
+        with patch.dict("os.environ", {"DISCORD_WEBHOOK_URL": "https://discord.com/api/webhooks/abc/xyz"}, clear=True), \
+             patch("urllib.request.urlopen") as fake:
+            fake.return_value.__enter__.return_value = response
+            text = "\n".join(f"- 2026-12-15 {i:02d}:00 PM: 3 seats" for i in range(100))
+            discord(text)
+            payloads = [json.loads(call.args[0].data)["content"] for call in fake.call_args_list]
+            self.assertGreater(len(payloads), 1)
+            self.assertEqual("".join(payloads), text)
+            self.assertTrue(all(len(part) <= 1900 for part in payloads))
+
 
 if __name__ == "__main__": unittest.main()
