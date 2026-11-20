@@ -1,0 +1,43 @@
+name: TCF alert delivery test - on demand only
+
+on:
+  # Initial creation of this file sends exactly one bot-generated test alert.
+  push:
+    paths:
+      - '.github/workflows/tcf-alert-test.yml'
+  # No cron. Later tests happen only when you explicitly click Run workflow.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  delivery-test:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 3
+    steps:
+      - name: Create clearly labeled test GitHub Issue, assigned to owner
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const {owner,repo} = context.repo;
+            const title = '[TEST ONLY] TCF alert delivery verification - not an exam slot';
+            const body = [
+              '# TEST NOTIFICATION — NO EXAM SLOT FOUND',
+              '',
+              'This issue was generated automatically by **github-actions[bot]** to verify the same GitHub issue-assignment email path as the January TCF availability alert.',
+              '',
+              'If this message reaches your email inbox, GitHub email delivery is functioning.',
+              'If GitHub Mobile sends a push, that channel is functioning too. Push delivery is not guaranteed.',
+              '',
+              '**The December and January availability checkers were not run by this test.**',
+              '',
+              'Real December alerts include all observed December 10–31 sessions with dates, times, seats and a GBLC booking link.',
+              '',
+              'You may close this test issue after confirming receipt.'
+            ].join('\n');
+            const issue = await github.rest.issues.create({
+              owner, repo, title, body, assignees:[owner]
+            });
+            core.info('TEST ISSUE CREATED: '+issue.data.html_url);
