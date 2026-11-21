@@ -6,10 +6,10 @@
 
 | Check | External Google trigger | Existing GitHub internal schedule |
 |---|---|---|
-| TCF Canada Dec 10–31, 2026 | Every **5 minutes** | Kept as secondary fallback |
+| TCF Canada Dec 10–31, 2026 | **1-minute wakeup; sends at most once every 3 minutes** | Kept as secondary fallback |
 | TCF Canada Jan 1–31, 2027 | Every **30 minutes** | Kept as secondary fallback |
 
-Google triggers run approximately at the interval; precise wall-clock time and every individual invocation are not guaranteed. GitHub may also queue or fail dispatched jobs. Keep the existing ChatGPT hourly health watch enabled.
+Google triggers run approximately at the interval; December uses a persistent 3-minute guard to skip wakeups that occur too soon after the last accepted dispatch. It may sometimes run later than 3 minutes; precise wall-clock times are not guaranteed. GitHub may also queue or fail dispatched jobs. Keep the existing ChatGPT hourly health watch enabled.
 
 ## SETUP REQUIRED — NOT ACTIVE until you complete these steps
 
@@ -23,7 +23,7 @@ Google triggers run approximately at the interval; precise wall-clock time and e
 
 **5. Test immediately.** Select `testBothTcfNow` and click **Run**. Open https://github.com/harjotsingh5281/gpt-test/actions and verify TWO **workflow_dispatch** runs, one for each monitor, that complete successfully. These are genuine read-only scans; no fake exam issue will be created. The code sets `dry_run=false` (the GitHub form's default is true), so any actually new session generates a normal GitHub Issue and Gmail notification. The HTTP 204 response in Google logs proves GitHub accepted the dispatch request; only GitHub Actions logs prove the scan completed.
 
-**6. Confirm unattended execution.** In Apps Script sidebar open **Triggers** (clock icon) to see the 5-minute and 30-minute triggers, and **Executions** to check their last actual runs. In GitHub Actions the externally triggered runs show **workflow_dispatch**, not **schedule**. They should keep appearing without the laptop running. Run `checkTcfSchedulerStatus` to see installation and last accepted dispatch timestamps.
+**6. Confirm unattended execution.** In Apps Script sidebar open **Triggers** (clock icon) to see the December every-1-minute wakeup and January every-30-minute triggers, and **Executions** to check their last actual runs. In GitHub Actions the externally triggered runs show **workflow_dispatch**, not **schedule**. They should keep appearing without the laptop running. Run `checkTcfSchedulerStatus` to see installation and last accepted dispatch timestamps.
 
 **7. Stop if you book or no longer need checks.** Run `uninstallTcfTriggers` in Apps Script, and disable the relevant native GitHub workflow and hourly health watch. The script itself skips dispatches after each target month's last day (Toronto local time). The script triggers may continue waking after that until removed, but will not send GitHub requests.
 
@@ -40,7 +40,7 @@ Google triggers run approximately at the interval; precise wall-clock time and e
 
 ## Current status
 
-Source is prepared in GitHub. **Google Apps Script project, token and time triggers must still be configured by the account owner.** Do not describe this external scheduler as activated or verified before step 5 and a successful unattended run.
+The user's existing live Google Apps Script installation was verified with December 5-minute and January 30-minute automatic scans. **The new December 3-minute setting is source-only until Code.gs is replaced in the existing private Apps Script project and `installTcfTriggers()` is run again.** Existing `GITHUB_PAT` Script Property is preserved. After updating, verify automatic `workflow_dispatch` runs at approximately 3-minute intervals.
 
 Official references:
 
