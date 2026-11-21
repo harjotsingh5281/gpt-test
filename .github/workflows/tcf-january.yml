@@ -1,8 +1,6 @@
 name: TCF Canada GBLC - January 2027
 
 on:
-  schedule:
-    - cron: '12,42 * * * *'
   workflow_dispatch:
     inputs:
       dry_run:
@@ -15,11 +13,6 @@ on:
         type: boolean
         required: true
         default: false
-  push:
-    paths:
-      - 'monitor_january.py'
-      - 'tests/test_january.py'
-      - '.github/workflows/tcf-january.yml'
 
 permissions:
   contents: read
