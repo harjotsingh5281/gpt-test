@@ -1,8 +1,6 @@
 name: TCF Canada GBLC slot monitor
 
 on:
-  schedule:
-    - cron: '4,9,14,19,24,29,34,39,44,49,54,59 * * * *'
   workflow_dispatch:
     inputs:
       dry_run:
@@ -15,12 +13,6 @@ on:
         type: boolean
         required: true
         default: false
-  push:
-    paths:
-      - 'monitor.py'
-      - 'requirements.txt'
-      - 'tests/**'
-      - '.github/workflows/tcf-monitor.yml'
 
 permissions:
   contents: read
