@@ -5,7 +5,7 @@
  * Paste this into a PRIVATE standalone Google Apps Script project.
  * Add GITHUB_PAT as a Script Property in Apps Script project settings.
  *
- * Google triggers: December every 5 minutes, January every 30 minutes.
+ * Google triggers: December 1-minute wakeups with a 3-minute dispatch guard, January every 30 minutes.
  * GitHub workflow_dispatch starts the existing, read-only Playwright checkers.
  * Notification delivery remains GitHub Issue -> Gmail.
  */
@@ -16,6 +16,7 @@ const TCF_SCHEDULER = Object.freeze({
   timezone: 'America/Toronto',
   decemberWorkflow: 'tcf-monitor.yml',
   januaryWorkflow: 'tcf-january.yml',
+  decemberMinIntervalMs: 3 * 60 * 1000,
   decemberEnd: '2026-12-31',
   januaryEnd: '2027-01-31'
 });
@@ -27,24 +28,34 @@ const TCF_SCHEDULER = Object.freeze({
 function installTcfTriggers() {
   requireGitHubToken_();
 
-  const names = ['checkDecemberTcf', 'checkJanuaryTcf'];
+  const names = ['checkDecemberTcf', 'maybeCheckDecemberTcf', 'checkJanuaryTcf'];
   ScriptApp.getProjectTriggers().forEach(function(trigger) {
     if (names.indexOf(trigger.getHandlerFunction()) !== -1) {
       ScriptApp.deleteTrigger(trigger);
     }
   });
 
-  ScriptApp.newTrigger('checkDecemberTcf')
-    .timeBased().everyMinutes(5).create();
+  ScriptApp.newTrigger('maybeCheckDecemberTcf')
+    .timeBased().everyMinutes(1).create();
 
   ScriptApp.newTrigger('checkJanuaryTcf')
     .timeBased().everyMinutes(30).create();
 
-  Logger.log('Installed December 5-minute and January 30-minute Google time triggers.');
+  Logger.log('Installed December 1-minute wakeups (3-minute dispatch guard) and January 30-minute trigger.');
   Logger.log('Next: run testBothTcfNow() and check GitHub Actions for two workflow_dispatch runs.');
 }
 
-/** Trigger for the December 10-31, 2026 monitor. */
+/** Scheduled December trigger: wake every minute, dispatch no more often than 3 minutes. */
+function maybeCheckDecemberTcf() {
+  dispatchTcf_(
+    TCF_SCHEDULER.decemberWorkflow,
+    TCF_SCHEDULER.decemberEnd,
+    'December',
+    TCF_SCHEDULER.decemberMinIntervalMs
+  );
+}
+
+/** Manual December scan (no interval guard), used by testBothTcfNow(). */
 function checkDecemberTcf() {
   dispatchTcf_(
     TCF_SCHEDULER.decemberWorkflow,
@@ -81,7 +92,7 @@ function checkTcfSchedulerStatus() {
   const triggers = ScriptApp.getProjectTriggers()
     .map(function(t) { return t.getHandlerFunction(); });
   const props = PropertiesService.getScriptProperties();
-  Logger.log('December trigger installed: ' + triggers.includes('checkDecemberTcf'));
+  Logger.log('December 3-minute dispatch guard trigger installed: ' + triggers.includes('maybeCheckDecemberTcf'));
   Logger.log('January trigger installed: ' + triggers.includes('checkJanuaryTcf'));
   Logger.log('Last December request accepted: ' +
     (props.getProperty('TCF_DEC_LAST_ACCEPTED_UTC') || 'Never'));
@@ -92,7 +103,7 @@ function checkTcfSchedulerStatus() {
 
 /** Optional: stop the external scheduler after booking or January 2027. */
 function uninstallTcfTriggers() {
-  const names = ['checkDecemberTcf', 'checkJanuaryTcf'];
+  const names = ['checkDecemberTcf', 'maybeCheckDecemberTcf', 'checkJanuaryTcf'];
   ScriptApp.getProjectTriggers().forEach(function(t) {
     if (names.indexOf(t.getHandlerFunction()) !== -1) {
       ScriptApp.deleteTrigger(t);
@@ -109,7 +120,7 @@ function requireGitHubToken_() {
   return token.trim();
 }
 
-function dispatchTcf_(workflow, lastDate, label) {
+function dispatchTcf_(workflow, lastDate, label, minIntervalMs) {
   const localToday = Utilities.formatDate(new Date(), TCF_SCHEDULER.timezone, 'yyyy-MM-dd');
   if (localToday > lastDate) {
     Logger.log(label + ' date window ended; skipping dispatch.');
@@ -123,6 +134,16 @@ function dispatchTcf_(workflow, lastDate, label) {
   }
 
   try {
+    // Script lock makes the timing guard safe even if two minute ticks overlap.
+    const props = PropertiesService.getScriptProperties();
+    if (minIntervalMs) {
+      const lastAcceptedMs = Number(props.getProperty('TCF_DEC_LAST_ACCEPTED_EPOCH_MS') || 0);
+      if (lastAcceptedMs && Date.now() - lastAcceptedMs < minIntervalMs) {
+        Logger.log(label + ': 3-minute dispatch interval not elapsed; skipping this 1-minute wakeup.');
+        return;
+      }
+    }
+
     const token = requireGitHubToken_();
     const url = 'https://api.github.com/repos/' + TCF_SCHEDULER.repository +
       '/actions/workflows/' + workflow + '/dispatches';
@@ -159,7 +180,10 @@ function dispatchTcf_(workflow, lastDate, label) {
     const property = label === 'December'
       ? 'TCF_DEC_LAST_ACCEPTED_UTC' : 'TCF_JAN_LAST_ACCEPTED_UTC';
     const accepted = Utilities.formatDate(new Date(), 'UTC', 'yyyy-MM-dd HH:mm:ss');
-    PropertiesService.getScriptProperties().setProperty(property, accepted);
+    props.setProperty(property, accepted);
+    if (label === 'December') {
+      props.setProperty('TCF_DEC_LAST_ACCEPTED_EPOCH_MS', String(Date.now()));
+    }
     Logger.log(label + ' GitHub dispatch ACCEPTED at ' + accepted +
       ' UTC. Check GitHub Actions for the actual scan result.');
   } finally {
